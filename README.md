@@ -2,7 +2,9 @@
 
 **Little Math Lab** is a free, interactive math visualizer for 1st and 2nd grade. It helps children see how to **add and subtract across a ten** (like 28 + 5 or 32 − 5), **count by tens**, and understand **tens and ones (place value)**, using a car, a number line, beads, ten frames and a train.
 
-It is a single HTML file. No install, no sign-up, no ads, no tracking. Open `index.html` in any browser, on a computer, tablet or phone.
+**[▶ Try it online: hckblues.github.io/kidsMathLab](https://hckblues.github.io/kidsMathLab/)**
+
+It is a single HTML file. No install, no sign-up, no ads, no tracking. Open the link above, or open `index.html` in any browser, on a computer, tablet or phone.
 
 > Made by a parent for a first grader who kept getting stuck on "going over the ten": why does 10 + 18 become 28, and why does 28 + 5 go past 30?
 
