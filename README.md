@@ -4,7 +4,7 @@
 
 **[▶ Try it online: hckblues.github.io/kidsMathLab](https://hckblues.github.io/kidsMathLab/)**
 
-It is a single HTML file. No install, no sign-up, no ads, no tracking. Open the link above, or open `index.html` in any browser, on a computer, tablet or phone.
+It is a single HTML file (plus its icon). No install, no sign-up, no ads, no tracking. Open the link above, or open `index.html` in any browser, on a computer, tablet or phone.
 
 > Made by a parent for a first grader who kept getting stuck on "going over the ten": why does 10 + 18 become 28, and why does 28 + 5 go past 30?
 
@@ -82,7 +82,7 @@ Open `index.html` in a browser. To start on a given subject, add `#add`, `#subtr
 - Type or step the numbers, or use the example buttons.
 - **Next / Back / Play / Start over** step through the sum. In the car view use **Drive 1 step** and **Drive all the way**.
 - Keyboard: `Space` or `→` goes forward one step, `←` goes back. In the car view the arrows move the car left and right, and the key legend in the top right shows what each key does.
-- The answer stays within 0–99 and the number added or taken away is 1–20.
+- The answer stays within 0–99. The number added or taken away is 1–20, and when counting by tens you add 10 to 90 (14 + 50 jumps five times).
 - Your last chosen view is remembered in the browser.
 
 ## Notes

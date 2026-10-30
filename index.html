@@ -6,6 +6,8 @@
 <title>1st Grade Math Visualizer: Add and Subtract Past 10</title>
 <meta name="description" content="Free 1st grade math visualizer: adding and subtracting across a ten, counting by tens, and tens and ones, shown with a car, number line, ten frames and train.">
 <meta name="theme-color" content="#eef3fa">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="canonical" href="https://hckblues.github.io/kidsMathLab/">
 <meta property="og:url" content="https://hckblues.github.io/kidsMathLab/">
 <meta property="og:type" content="website">
@@ -66,7 +68,8 @@
     padding-left: max(16px, env(safe-area-inset-left, 0px));
     padding-right: max(16px, env(safe-area-inset-right, 0px));
   }
-  .wrap { max-width: 920px; margin: 0 auto; display: flex; flex-direction: column; gap: 18px; }
+  .page { display: grid; grid-template-columns: minmax(0, 920px) 176px; gap: 24px; justify-content: center; align-items: start; }
+  .wrap { min-width: 0; display: flex; flex-direction: column; gap: 18px; }
   h1, h2, .num, .eq, .brand { font-family: var(--font-display); font-weight: 500; }
   button { font: inherit; color: inherit; cursor: pointer; }
   button:focus-visible, input:focus-visible, summary:focus-visible { outline: 3px solid var(--start); outline-offset: 2px; }
@@ -75,6 +78,8 @@
 
   /* top bar + subjects */
   .top { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 20px; }
+  .brand { display: flex; align-items: center; gap: 10px; }
+  .logo { width: 34px; height: 34px; flex: 0 0 auto; }
   .brand { font-size: 22px; letter-spacing: .01em; }
   .subjects { display: flex; flex-wrap: wrap; gap: 8px; }
   .subj { border: 1.5px solid var(--line); background: var(--surface); border-radius: 999px; padding: 6px 14px; font-weight: 700; font-size: 15px; }
@@ -115,7 +120,6 @@
   .views button[aria-pressed="true"] { background: var(--ink); color: var(--bg); border-color: var(--ink); }
   .frames.rows { flex-direction: column; gap: 10px; min-height: 0; }
   .frame.row { grid-template-columns: repeat(10, var(--slot)); width: max-content; max-width: 100%; }
-  .frame.row .slot:nth-child(6) { margin-left: 10px; }
   .head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-start; gap: 12px 20px; }
   .say { flex: 1 1 280px; min-width: 0; }
   .say h2 { margin: 0; font-size: clamp(24px, 5.2vw, 34px); line-height: 1.15; text-wrap: balance; font-variant-numeric: tabular-nums; }
@@ -225,8 +229,15 @@
   .boom div { background: var(--ink); color: var(--bg); border-radius: 24px; padding: 14px 30px; box-shadow: 0 12px 40px rgba(0, 0, 0, .3); animation: boomIn .6s cubic-bezier(.3, 1.6, .5, 1) both; }
   .boom b { display: block; font-family: var(--font-display); font-weight: 600; font-size: clamp(46px, 13vw, 88px); line-height: 1; }
   .boom span { display: block; font-size: 18px; font-weight: 700; margin-top: 4px; }
-  .keys { margin-left: auto; display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; font-size: 13px; color: var(--muted); }
-  .keys span { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }
+  /* the key legend sits in a side column next to the content; narrower screens put it on top, right-aligned */
+  .keys { position: sticky; top: 20px; display: flex; flex-direction: column; gap: 10px; padding: 12px 14px; background: var(--surface); border: 1.5px solid var(--line); border-radius: 14px; font-size: 13px; color: var(--muted); }
+  .keys .kt { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: var(--ink); }
+  .keys span { display: flex; align-items: center; flex-wrap: wrap; gap: 4px; }
+  @media (max-width: 1180px) {
+    .page { grid-template-columns: minmax(0, 920px); }
+    .keys { grid-row: 1; position: static; flex-direction: row; flex-wrap: wrap; align-items: center; gap: 6px 14px; padding: 0; background: none; border: 0; justify-self: end; }
+    .keys .kt { display: none; }
+  }
   .keyhint { margin: 0; color: var(--muted); font-size: 15px; }
   kbd { font-family: var(--font-display); font-size: 14px; border: 1.5px solid var(--line); border-bottom-width: 3px; border-radius: 6px; padding: 0 7px; background: var(--surface); color: var(--ink); }
   .csay { min-height: 84px; }
@@ -287,11 +298,11 @@
 
 </head>
 <body>
+<div class="page">
 <div class="wrap">
   <header class="top">
-    <div class="brand">Little Math Lab</div>
+    <div class="brand"><svg class="logo" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" rx="14" fill="#2f6fe4"/><rect x="8" y="17" width="48" height="30" rx="6" fill="none" stroke="#ffffff" stroke-opacity=".45" stroke-width="2"/><circle cx="14" cy="26" r="3.6" fill="#ffffff"/><circle cx="23" cy="26" r="3.6" fill="#ffffff"/><circle cx="32" cy="26" r="3.6" fill="#ffffff"/><circle cx="41" cy="26" r="3.6" fill="#ffffff"/><circle cx="50" cy="26" r="3.6" fill="#ffffff"/><circle cx="14" cy="38" r="3.6" fill="#ffffff"/><circle cx="23" cy="38" r="3.6" fill="#ffffff"/><circle cx="32" cy="38" r="3.6" fill="#ffffff"/><circle cx="41" cy="38" r="3.6" fill="#ffa64d"/><circle cx="50" cy="38" r="3.6" fill="#ffa64d"/></svg>Little Math Lab</div>
     <nav class="subjects" id="subjects" aria-label="Subjects"></nav>
-    <div class="keys" id="keys" aria-label="Keyboard keys"></div>
   </header>
 
   <section class="intro">
@@ -405,6 +416,8 @@
     <h3>Tens and ones (place value)</h3>
     <p>A number like 34 is 3 tens and 4 ones. Full ten frames or full train cars are tens, and the loose counters are ones.</p>
   </section>
+</div>
+<aside class="keys" id="keys" aria-label="Keyboard keys"></aside>
 </div>
 
 <script>
@@ -637,7 +650,8 @@ function buildSub(A, B) {
   return { steps, eq, A, B, op: 'sub', end: A - B };
 }
 /* Count by tens: A, then k jumps of ten. The ones never change, the tens go up by one each jump. */
-function buildTens(A, k) {
+function buildTens(A, B) {
+  const k = B / 10;   /* B is the amount to add, a multiple of ten, e.g. 50 */
   const at = Math.floor(A / 10), ao = A % 10;
   const tens = Array.from({ length: at }, () => Array(10).fill('start'));
   const ones = Array(ao).fill('start');
@@ -653,7 +667,7 @@ function buildTens(A, k) {
   eqAdd(`${N(A, 'start')}`);
   push({
     title: `Start at ${A}`,
-    sub: `${plural(at, 'ten')} and ${plural(ao, 'one')}. We will jump ${k} ${k === 1 ? 'time' : 'times'}, ten each time.`,
+    sub: `${plural(at, 'ten')} and ${plural(ao, 'one')}. We will add ${B}, one ten at a time (${k} ${k === 1 ? 'jump' : 'jumps'}).`,
     note: ao ? `Watch the ones. They stay at ${ao}.` : 'Watch the tens digit go up by one each time.',
     preview: next(),
     tt: { title: `${people(A)} ${A === 1 ? 'is' : 'are'} on the train`, sub: `${carsDesc(at, ao)}.`, note: 'At every stop a whole car of 10 boards.' },
@@ -670,7 +684,7 @@ function buildTens(A, k) {
       tt: { title: `A car of 10 boards: ${cur}`, sub: `${plural(at + i, 'full car')}${ao ? ` and ${ao} in the last car` : ''}.` },
     });
   }
-  return { steps, eq, A, B: k, end: A + 10 * k };
+  return { steps, eq, A, B, end: A + B };
 }
 
 /* Tens and ones: build n from nothing, tens first, then ones. */
@@ -736,7 +750,7 @@ function finishModel(m, op) {
   const o = {
     add: { sum: `${A} + ${B} = ${end}`, big: `jump of ${B}`, gate: 'A new ten!', msg: 'We crossed into a new ten!', note: 'A new ten.' },
     sub: { sum: `${A} ${MINUS} ${B} = ${end}`, big: `back ${B}`, gate: 'Down to a ten!', msg: 'We are down to a ten!', note: 'Down to a whole ten.' },
-    tens: { sum: `${A} + ${B} ${B === 1 ? 'ten' : 'tens'} = ${end}`, big: `${B} ${B === 1 ? 'jump' : 'jumps'} of 10`, gate: '', msg: '', note: '' },
+    tens: { sum: `${A} + ${B} = ${end}`, big: `${B / 10} ${B === 10 ? 'jump' : 'jumps'} of 10`, gate: '', msg: '', note: '' },
     place: { sum: `${Math.floor(end / 10) * 10} + ${end % 10} = ${end}`, big: `build ${end}`, gate: 'Tens done!', msg: 'Tens done! Now the ones.', note: 'The tens are done. Now the ones.' },
   }[op];
   m.sumText = o.sum; m.bigLabel = o.big; m.gateTitle = o.gate; m.gateMsg = o.msg; m.gateNote = o.note;
@@ -952,8 +966,8 @@ function render() {
   document.querySelectorAll('#presets .chip').forEach(c =>
     c.setAttribute('aria-pressed', String(+c.dataset.a === S.A && +c.dataset.b === S.B)));
   $('keys').innerHTML = isCar
-    ? '<span><kbd>←</kbd><kbd>→</kbd> move the car</span><span><kbd>Space</kbd> drive 1 step</span>'
-    : '<span><kbd>←</kbd><kbd>→</kbd> back, next</span><span><kbd>Space</kbd> next</span>';
+    ? '<b class="kt">Keys</b><span><kbd>←</kbd><kbd>→</kbd> move the car</span><span><kbd>Space</kbd> drive 1 step</span>'
+    : '<b class="kt">Keys</b><span><kbd>←</kbd><kbd>→</kbd> back, next</span><span><kbd>Space</kbd> next</span>';
   if (isCar) carRender();
 }
 
@@ -964,7 +978,7 @@ function setProblem(a, b) {
   stopPlay();
   a = Math.round(+a) || 0; b = Math.round(+b) || 0;
   if (S.op === 'place') { a = Math.max(1, Math.min(MAX_SUM, a)); b = 0; }
-  else if (S.op === 'tens') { b = Math.max(1, Math.min(9, b)); a = Math.max(0, Math.min(MAX_SUM - 10 * b, a)); }
+  else if (S.op === 'tens') { b = Math.max(10, Math.min(90, Math.round(b / 10) * 10)); a = Math.max(0, Math.min(MAX_SUM - b, a)); }
   else {
     b = Math.max(1, Math.min(MAX_B, b));
     if (S.op === 'sub') { a = Math.max(b, Math.min(MAX_SUM, a)); b = Math.min(b, a); }
@@ -992,8 +1006,8 @@ $('play').onclick = () => {
 };
 $('aDown').onclick = () => setProblem(S.A - 1, S.B);
 $('aUp').onclick = () => setProblem(S.A + 1, S.B);
-$('bDown').onclick = () => setProblem(S.A, S.B - 1);
-$('bUp').onclick = () => setProblem(S.A, S.B + 1);
+$('bDown').onclick = () => setProblem(S.A, S.B - (S.op === 'tens' ? 10 : 1));
+$('bUp').onclick = () => setProblem(S.A, S.B + (S.op === 'tens' ? 10 : 1));
 $('aIn').onchange = e => setProblem(e.target.value, S.B);
 $('bIn').onchange = e => setProblem(S.A, e.target.value);
 /* Space also fires a focused button on key-up, so cancel that: the keydown already moved one step */
@@ -1221,7 +1235,7 @@ const TEXT = {
   tens: {
     h1: 'Counting by tens',
     intro: 'Jump ahead one ten at a time. The tens go up and the ones stay the same. Pick how you want to watch it.',
-    sign: '+', tray: 'Coming up', none: 'Nothing waiting', bLabel: 'Number of tens',
+    sign: '+', tray: 'Coming up', none: 'Nothing waiting', bLabel: 'Tens to add (10, 20, 30 ...)',
     plat: 'Waiting on the platform', platNone: 'A whole car of 10 boards at each stop',
     gu1: 'Counting by tens is the base of place value. When you add 10 to a number only the tens digit goes up by one and the ones digit stays put (14, 24, 34, 44). Say the numbers out loud while the car drives or the frames fill up. It also prepares for adding 10 or 20 to any number in the other subjects.',
     gu2: 'Ask: "Which digit changed? Which one stayed the same?" after each jump.',
@@ -1238,12 +1252,12 @@ const TEXT = {
 const PRESETS = {
   add: [[10, 18], [28, 5], [17, 6], [49, 4], [8, 5], [36, 9]],
   sub: [[32, 5], [41, 6], [14, 6], [53, 7], [30, 4], [35, 18]],
-  tens: [[14, 4], [30, 5], [7, 6], [52, 3], [0, 9], [25, 7]],
+  tens: [[14, 40], [30, 50], [7, 60], [52, 30], [0, 90], [25, 70]],
   place: [[34, 0], [57, 0], [10, 0], [26, 0], [80, 0], [99, 0]],
 };
-const DEFAULT = { add: [28, 5], sub: [32, 5], tens: [14, 4], place: [34, 0] };
+const DEFAULT = { add: [28, 5], sub: [32, 5], tens: [14, 40], place: [34, 0] };
 const HASH = { add: '#add', sub: '#subtract', tens: '#tens', place: '#place' };
-const chipText = (op, a, b) => ({ add: `${a} + ${b}`, sub: `${a} ${MINUS} ${b}`, tens: `${a} + ${b} tens`, place: `${a}` })[op];
+const chipText = (op, a, b) => ({ add: `${a} + ${b}`, sub: `${a} ${MINUS} ${b}`, tens: `${a} + ${b}`, place: `${a}` })[op];
 
 function renderSubjects() {
   $('subjects').innerHTML = SUBJECTS.map(s =>
@@ -1265,7 +1279,7 @@ function setOp(op) {
   $('gu1').textContent = T.gu1; $('gu2').textContent = T.gu2;
   $('bIn').setAttribute('aria-label', T.bLabel);
   $('opSign').hidden = $('bBox').hidden = op === 'place';
-  $('bUnit').hidden = op !== 'tens';
+  $('bUnit').hidden = true;
   try { history.replaceState(null, '', HASH[op]); } catch (e) {}
   renderSubjects(); renderPresets();
   setProblem(...DEFAULT[op]);
