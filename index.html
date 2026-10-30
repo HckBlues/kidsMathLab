@@ -1,0 +1,1095 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Little Math Lab</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600&family=Nunito:wght@400;600;700&display=swap">
+<style>
+  /* Layout: one column. Subject chips on top, a problem picker, then a stage
+     (ten-frames you step through), the equation as it builds, and a number line. */
+  :root {
+    --bg: #eef3fa;
+    --surface: #ffffff;
+    --ink: #172033;
+    --muted: #55627f;
+    --line: #d3dcec;
+    --hole: #e4eaf6;
+    --start: #2f6fe4;   /* the number you start with */
+    --tens: #0e9f8a;    /* whole tens you add */
+    --fill: #e8780c;    /* the bit that fills the frame up to a ten */
+    --ones: #d93f8e;    /* the ones that are left over */
+    --road: #3b4562;
+    --roadline: #c9d3e8;
+    --font-display: "Fredoka", "Trebuchet MS", system-ui, sans-serif;
+    --font-body: "Nunito", system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0f1626; --surface: #182238; --ink: #eaf0ff; --muted: #9aa9c9; --line: #2a3752; --hole: #0f192d;
+      --start: #6b9bff; --tens: #36d1b8; --fill: #ffa64d; --ones: #ff6fb5; --road: #0a1120; --roadline: #52638a;
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0f1626; --surface: #182238; --ink: #eaf0ff; --muted: #9aa9c9; --line: #2a3752; --hole: #0f192d;
+    --start: #6b9bff; --tens: #36d1b8; --fill: #ffa64d; --ones: #ff6fb5; --road: #0a1120; --roadline: #52638a;
+    color-scheme: dark;
+  }
+
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  body {
+    background: var(--bg); color: var(--ink);
+    font-family: var(--font-body); font-size: 17px; line-height: 1.45;
+    padding-block: 20px 48px;
+    padding-left: max(16px, env(safe-area-inset-left, 0px));
+    padding-right: max(16px, env(safe-area-inset-right, 0px));
+  }
+  .wrap { max-width: 920px; margin: 0 auto; display: flex; flex-direction: column; gap: 18px; }
+  h1, h2, .num, .eq, .brand { font-family: var(--font-display); font-weight: 500; }
+  button { font: inherit; color: inherit; cursor: pointer; }
+  button:focus-visible, input:focus-visible, summary:focus-visible { outline: 3px solid var(--start); outline-offset: 2px; }
+
+  .card { background: var(--surface); border: 1.5px solid var(--line); border-radius: 18px; padding: 18px; }
+
+  /* top bar + subjects */
+  .top { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 20px; }
+  .brand { font-size: 22px; letter-spacing: .01em; }
+  .subjects { display: flex; flex-wrap: wrap; gap: 8px; }
+  .subj { border: 1.5px solid var(--line); background: var(--surface); border-radius: 999px; padding: 6px 14px; font-weight: 700; font-size: 15px; }
+  .subj[aria-current="true"] { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+  .subj:disabled { color: var(--muted); cursor: default; border-style: dashed; background: transparent; }
+  .subj small { font-weight: 600; opacity: .8; margin-left: 6px; }
+
+  .pagelink { margin-left: auto; color: var(--ink); font-weight: 700; font-size: 15px; }
+  .intro h1 { margin: 0; font-size: clamp(28px, 6vw, 40px); line-height: 1.1; text-wrap: balance; }
+  .intro p { margin: 6px 0 0; color: var(--muted); max-width: 60ch; }
+
+  /* picker */
+  .picker { display: flex; flex-wrap: wrap; align-items: center; gap: 14px 22px; }
+  .pair { display: flex; align-items: center; gap: 12px; }
+  .plus-sign { font-family: var(--font-display); font-size: 32px; color: var(--muted); }
+  .stepper { display: flex; align-items: center; background: var(--surface); border: 1.5px solid var(--line); border-radius: 14px; overflow: hidden; }
+  .stepper button { width: 44px; height: 52px; border: 0; background: transparent; font-size: 26px; font-family: var(--font-display); }
+  .stepper button:hover { background: var(--hole); }
+  .stepper input {
+    width: 64px; height: 52px; border: 0; background: transparent; color: var(--ink); text-align: center;
+    font-family: var(--font-display); font-size: 30px; font-weight: 500; font-variant-numeric: tabular-nums; -moz-appearance: textfield;
+  }
+  .stepper input::-webkit-outer-spin-button, .stepper input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+  .stepper.a { box-shadow: inset 0 -4px 0 var(--start); }
+  .stepper.b { box-shadow: inset 0 -4px 0 var(--ones); }
+  .presets { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  .presets span { color: var(--muted); font-size: 14px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; }
+  .chip { border: 1.5px solid var(--line); background: var(--surface); border-radius: 10px; padding: 6px 12px; font-family: var(--font-display); font-size: 18px; font-variant-numeric: tabular-nums; }
+  .chip:hover { border-color: var(--ink); }
+  .chip[aria-pressed="true"] { background: var(--hole); border-color: var(--ink); }
+
+  /* stage */
+  .stage { display: flex; flex-direction: column; gap: 16px; }
+  .views { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+  .views span { color: var(--muted); font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; margin-right: 4px; }
+  .views button { border: 1.5px solid var(--line); background: var(--surface); border-radius: 999px; padding: 6px 16px; font-weight: 700; font-size: 16px; }
+  .views button[aria-pressed="true"] { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+  .frames.rows { flex-direction: column; gap: 10px; min-height: 0; }
+  .frame.row { grid-template-columns: repeat(10, var(--slot)); width: max-content; max-width: 100%; }
+  .frame.row .slot:nth-child(6) { margin-left: 10px; }
+  .head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-start; gap: 12px 20px; }
+  .say { flex: 1 1 280px; min-width: 0; }
+  .say h2 { margin: 0; font-size: clamp(24px, 5.2vw, 34px); line-height: 1.15; text-wrap: balance; font-variant-numeric: tabular-nums; }
+  .say .sub { margin: 6px 0 0; font-size: 18px; max-width: 52ch; }
+  .say .note { margin: 4px 0 0; color: var(--muted); font-size: 16px; }
+  .readout { text-align: right; flex: 0 0 auto; padding: 8px 14px; border-radius: 14px; background: var(--hole); min-width: 132px; }
+  .readout .lbl { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
+  .readout .num { font-size: 48px; line-height: 1; font-variant-numeric: tabular-nums; }
+  .readout .pv { font-size: 14px; color: var(--muted); font-weight: 600; }
+  .readout.done { background: var(--ink); color: var(--bg); }
+  .readout.done .lbl, .readout.done .pv { color: inherit; opacity: .85; }
+
+  .zones { display: flex; flex-wrap: wrap; gap: 14px 28px; align-items: flex-start; }
+  .zone { min-width: 0; }
+  .zone { flex: 1 1 100%; }
+  .zone h3 { margin: 0 0 10px; font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); display: flex; gap: 8px; align-items: baseline; }
+  .zone h3 b + b, .zone h3 b ~ b {} 
+  .zone h3 b { font-family: var(--font-display); font-size: 20px; color: var(--ink); letter-spacing: 0; text-transform: none; font-variant-numeric: tabular-nums; }
+  .frames { display: flex; flex-wrap: wrap; gap: 14px; min-height: calc(var(--slot) * 2 + 34px); align-content: flex-start; }
+  .zone h3 .sep { width: 14px; }
+  .empty { color: var(--muted); font-size: 15px; align-self: center; }
+
+  .frame {
+    --slot: clamp(19px, 4.8vw, 28px);
+    position: relative; display: grid; grid-template-columns: repeat(5, var(--slot)); gap: 5px;
+    padding: 8px; border: 2px solid var(--line); border-radius: 10px; background: var(--surface);
+  }
+  .zones .frame, .tray .frame { --slot: clamp(19px, 4.8vw, 28px); }
+  .frame.full { border-color: var(--ink); }
+  .slot { width: var(--slot, 24px); height: var(--slot, 24px); border-radius: 50%; background: var(--hole); display: grid; place-items: center; font-family: var(--font-display); font-size: 14px; }
+  .slot.gap { background: transparent; box-shadow: inset 0 0 0 2.5px var(--gc); color: var(--gc); animation: breathe 1.6s ease-in-out infinite; }
+  .gc-fill { --gc: var(--fill); } .gc-ones { --gc: var(--ones); }
+  .dot { display: block; width: 100%; height: 100%; border-radius: 50%; box-shadow: inset 0 -3px 0 rgba(0,0,0,.18), inset 0 2px 0 rgba(255,255,255,.28); }
+  .g-start { background: var(--start); } .g-tens { background: var(--tens); } .g-fill { background: var(--fill); } .g-ones { background: var(--ones); }
+  .dot.pop { animation: pop .45s cubic-bezier(.3,1.5,.5,1) both; }
+  .badge {
+    position: absolute; top: -12px; right: 6px; background: var(--ink); color: var(--bg); border-radius: 999px;
+    padding: 1px 10px; font-size: 13px; font-weight: 700; white-space: nowrap;
+  }
+  @keyframes pop { 0% { transform: scale(.1); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
+  @keyframes breathe { 50% { opacity: .45; } }
+
+  .tray { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; min-height: 52px; padding: 10px 14px; border-radius: 14px; border: 2px dashed var(--line); }
+  .tray h3 { margin: 0; font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
+  .tray .row { display: flex; flex-wrap: wrap; gap: 6px; }
+  .tray .row .dot { width: 26px; height: 26px; }
+  .tray .none { color: var(--muted); font-size: 15px; }
+  .tray .bracket { font-family: var(--font-display); font-size: 17px; }
+
+  .controls { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+  .btn { border: 1.5px solid var(--line); background: var(--surface); border-radius: 14px; padding: 10px 18px; font-weight: 700; min-height: 48px; }
+  .btn:hover:not(:disabled) { border-color: var(--ink); }
+  .btn:disabled { opacity: .4; cursor: default; }
+  .btn.primary { background: var(--ink); color: var(--bg); border-color: var(--ink); font-size: 19px; padding-inline: 28px; font-family: var(--font-display); font-weight: 500; }
+  .dots { display: flex; gap: 6px; margin-left: auto; flex-wrap: wrap; }
+  .dots button { width: 14px; height: 14px; border-radius: 50%; border: 0; padding: 0; background: var(--line); }
+  .dots button[aria-current="true"] { background: var(--ink); transform: scale(1.3); }
+
+  /* equation */
+  .eqcard h3, .linecard h3 { margin: 0 0 8px; font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
+  .eq { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: clamp(24px, 6vw, 36px); font-variant-numeric: tabular-nums; }
+  .eq .seg { opacity: .16; transition: opacity .3s; white-space: nowrap; }
+  .eq .seg.on { opacity: 1; }
+  .c-start { color: var(--start); } .c-tens { color: var(--tens); } .c-fill { color: var(--fill); } .c-ones { color: var(--ones); }
+  .eq span[class^="c-"] { font-weight: 600; }
+
+  .linecard svg { display: block; width: 100%; height: auto; }
+  .arc.new { stroke-dasharray: 1; stroke-dashoffset: 1; animation: drawArc .8s ease-in-out forwards; }
+  .lab.new { animation: fadeIn .4s .5s ease both; }
+  @keyframes drawArc { to { stroke-dashoffset: 0; } }
+  @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+  .linecard text { font-family: var(--font-display); }
+
+  details { color: var(--muted); }
+  summary { cursor: pointer; font-weight: 700; color: var(--ink); }
+  details p { max-width: 62ch; margin: 8px 0 0; }
+
+  /* car view */
+  .viewcar { display: flex; flex-direction: column; gap: 14px; }
+  .tank { border: 2px solid var(--line); border-radius: 16px; padding: 10px 14px 14px; display: flex; flex-direction: column; gap: 8px; }
+  .tankhead { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
+  .tankhead span { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
+  .tankhead b { font-family: var(--font-display); font-weight: 500; font-size: 46px; line-height: 1; font-variant-numeric: tabular-nums; }
+  .seg { display: flex; gap: 4px; }
+  .seg i { flex: 1 1 0; min-width: 6px; height: 20px; border-radius: 6px; transition: background .3s, transform .3s; }
+  .seg i.used { background: var(--hole); transform: scaleY(.55); }
+  .roadwrap { position: relative; }
+  .roadwrap svg { display: block; width: 100%; height: auto; }
+  .roadwrap text { font-family: var(--font-display); }
+  #car { transition: transform .6s cubic-bezier(.45, .05, .25, 1); }
+  #car .tag rect, #car .tag path { fill: var(--ink); }
+  #car .tag text { fill: var(--bg); }
+  #finish { opacity: 0; transition: opacity .4s; }
+  #finish.on { opacity: 1; }
+  .gate .bn rect { fill: var(--ink); transition: fill .3s; }
+  .gate .bn text { fill: var(--bg); }
+  .gate.hit .bn rect { fill: var(--fill); }
+  .gate.hit .bn text { fill: #1a1206; }
+  .gate.hit .bn { transform-box: fill-box; transform-origin: center; animation: bnpulse .7s ease; }
+  .conf { animation: fly .95s ease-out forwards; }
+  .ring { fill: none; stroke: var(--fill); stroke-width: 4; transform-box: fill-box; transform-origin: center; animation: ring .8s ease-out forwards; }
+  .boom { position: absolute; inset: 0; display: grid; place-items: center; pointer-events: none; text-align: center; }
+  .boom div { background: var(--ink); color: var(--bg); border-radius: 24px; padding: 14px 30px; box-shadow: 0 12px 40px rgba(0, 0, 0, .3); animation: boomIn .6s cubic-bezier(.3, 1.6, .5, 1) both; }
+  .boom b { display: block; font-family: var(--font-display); font-weight: 600; font-size: clamp(46px, 13vw, 88px); line-height: 1; }
+  .boom span { display: block; font-size: 18px; font-weight: 700; margin-top: 4px; }
+  .keyhint { margin: 0; color: var(--muted); font-size: 15px; }
+  kbd { font-family: var(--font-display); font-size: 14px; border: 1.5px solid var(--line); border-bottom-width: 3px; border-radius: 6px; padding: 0 7px; background: var(--surface); color: var(--ink); }
+  .csay { min-height: 84px; }
+  .csay h2 { margin: 0; font-size: clamp(24px, 5.2vw, 34px); line-height: 1.15; text-wrap: balance; font-variant-numeric: tabular-nums; }
+  .csay p { margin: 6px 0 0; font-size: 18px; color: var(--muted); max-width: 52ch; }
+  @keyframes fly { to { transform: translate(var(--dx), var(--dy)) scale(.4); opacity: 0; } }
+  @keyframes ring { from { transform: scale(1); opacity: 1; } to { transform: scale(7); opacity: 0; } }
+  @keyframes boomIn { from { transform: scale(.2) rotate(-6deg); opacity: 0; } to { transform: scale(1) rotate(0); opacity: 1; } }
+  @keyframes bnpulse { 40% { transform: scale(1.3); } }
+
+  /* train view */
+  .scene { position: relative; display: flex; flex-direction: column; gap: 14px; }
+  .train { --seat: clamp(20px, 4.6vw, 28px); display: flex; flex-wrap: wrap; align-items: flex-end; gap: 18px; padding-bottom: 6px; border-bottom: 6px solid var(--line); border-radius: 2px; }
+  .engine { width: 92px; height: auto; flex: 0 0 auto; margin-bottom: 4px; }
+  .tcar { position: relative; padding: 0 8px 8px; border: 2px solid var(--line); border-radius: 12px; background: var(--surface); margin-bottom: 12px; }
+  .tcar.full { border-color: var(--ink); }
+  .tcar::after { content: ""; position: absolute; right: -14px; top: 62%; width: 14px; height: 4px; background: var(--line); }
+  .tcar .roof { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; padding: 6px 2px 7px; font-size: 13px; font-weight: 700; color: var(--muted); }
+  .tcar .roof b { font-family: var(--font-display); font-weight: 500; font-size: 16px; color: var(--ink); }
+  .seats { display: grid; grid-template-columns: repeat(5, var(--seat)); gap: 5px; }
+  .seat { width: var(--seat); height: var(--seat); border-radius: 50%; background: var(--hole); display: grid; place-items: center; font-family: var(--font-display); font-size: 13px; }
+  .seat.gap { background: transparent; box-shadow: inset 0 0 0 2.5px var(--gc); color: var(--gc); animation: breathe 1.6s ease-in-out infinite; }
+  .wheels { position: absolute; left: 16px; right: 16px; bottom: -13px; display: flex; justify-content: space-between; }
+  .wheels i { width: 18px; height: 18px; border-radius: 50%; background: var(--ink); border: 3px solid var(--bg); }
+  .tcar .badge { top: -13px; right: 8px; }
+  .tcar.arrive { animation: pull .9s cubic-bezier(.2, .8, .25, 1) both; }
+  .tcar.flash { animation: flash 1s ease both; }
+  .pax { position: relative; display: block; width: 100%; height: 100%; border-radius: 50%; background: var(--c); box-shadow: inset 0 -3px 0 rgba(0, 0, 0, .18); }
+  .pax::before { content: ""; position: absolute; left: 50%; top: 36%; width: 14%; height: 14%; margin-left: -29%; border-radius: 50%; background: var(--surface); }
+  .pax::after { content: ""; position: absolute; left: 50%; top: 56%; width: 40%; height: 18%; margin-left: -20%; border-bottom: 2.5px solid var(--surface); border-radius: 0 0 60% 60%; }
+  .pax i { position: absolute; left: 50%; top: 36%; width: 14%; height: 14%; margin-left: 15%; border-radius: 50%; background: var(--surface); }
+  .pax.g-start { --c: var(--start); } .pax.g-tens { --c: var(--tens); } .pax.g-fill { --c: var(--fill); } .pax.g-ones { --c: var(--ones); }
+  .pax.mark, .dot.mark { outline: 2.5px dashed var(--surface); outline-offset: -5px; }
+  .pax.pop { animation: board .55s cubic-bezier(.3, 1.3, .5, 1) both; }
+  .platform { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; padding: 12px 14px; border-radius: 14px; background: var(--hole); border-bottom: 8px solid var(--line); min-height: 64px; }
+  .platform h3 { margin: 0; font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
+  .platform h3 b { font-family: var(--font-display); font-size: 20px; color: var(--ink); letter-spacing: 0; margin-left: 4px; }
+  .waiters { display: flex; flex-wrap: wrap; gap: 6px; }
+  .waiters .pax { width: 28px; height: 28px; }
+  .platform .none { color: var(--muted); font-size: 15px; }
+  @keyframes board { from { transform: translateY(70px) scale(.5); opacity: 0; } to { transform: none; opacity: 1; } }
+  @keyframes pull { from { transform: translateX(110%); opacity: 0; } to { transform: none; opacity: 1; } }
+  @keyframes flash { 0%, 100% { box-shadow: 0 0 0 0 transparent; } 35% { box-shadow: 0 0 0 8px var(--fill); transform: translateY(-6px); } }
+
+  @media (max-width: 520px) {
+    .pagelink { margin-left: 0; width: 100%; }
+    .readout { text-align: left; }
+    .dots { margin-left: 0; width: 100%; }
+    .btn.primary { flex: 1 1 auto; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .dot.pop, .slot.gap, .arc.new, .lab.new, .conf, .ring, .boom div, .gate.hit .bn, .pax.pop, .seat.gap, .tcar.arrive, .tcar.flash { animation: none; }
+    #car { transition: none; }
+    .eq .seg { transition: none; }
+  }
+</style>
+
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div class="brand">Little Math Lab</div>
+    <nav class="subjects" id="subjects" aria-label="Subjects"></nav>
+  </header>
+
+  <section class="intro">
+    <h1 id="pageTitle">Adding past a ten</h1>
+    <p id="pageIntro">Get to the next ten first, then add what is left. Pick how you want to watch it.</p>
+  </section>
+
+  <section class="picker" aria-label="Choose a problem">
+    <div class="pair">
+      <div class="stepper a">
+        <button type="button" id="aDown" aria-label="Start number down">−</button>
+        <input id="aIn" type="number" inputmode="numeric" min="0" max="98" aria-label="Start number">
+        <button type="button" id="aUp" aria-label="Start number up">+</button>
+      </div>
+      <span class="plus-sign" id="opSign">+</span>
+      <div class="stepper b">
+        <button type="button" id="bDown" aria-label="Number to add down">−</button>
+        <input id="bIn" type="number" inputmode="numeric" min="1" max="20" aria-label="Number to add">
+        <button type="button" id="bUp" aria-label="Number to add up">+</button>
+      </div>
+    </div>
+    <div class="presets" id="presets"><span>Try</span></div>
+  </section>
+
+  <section class="stage card" aria-label="Visual">
+    <div class="views" id="views" role="group" aria-label="How to show it">
+      <span>Show me as</span>
+      <button type="button" data-v="car">Car</button>
+      <button type="button" data-v="hops">Hops</button>
+      <button type="button" data-v="beads">Beads</button>
+      <button type="button" data-v="frames">Boxes of ten</button>
+      <button type="button" data-v="train">Train</button>
+    </div>
+
+    <div id="viewCar" class="viewcar">
+      <div class="tank">
+        <div class="tankhead"><span>Steps left in the tank</span><b id="left"></b></div>
+        <div class="seg" id="seg"></div>
+      </div>
+      <div class="roadwrap"><div id="road"></div><div class="boom" id="boom" hidden></div></div>
+      <div class="csay" aria-live="polite"><h2 id="cTitle"></h2><p id="cNote"></p></div>
+      <div class="controls">
+        <button class="btn primary" id="cDrive" type="button">Drive 1 step</button>
+        <button class="btn" id="cAuto" type="button">Drive all the way</button>
+        <button class="btn" id="cBack" type="button">Back</button>
+        <button class="btn" id="cReset" type="button">Start over</button>
+      </div>
+      <p class="keyhint">Keyboard: <kbd>Space</kbd> or <kbd>→</kbd> drives 1 step, <kbd>←</kbd> goes back.</p>
+    </div>
+
+    <div class="head" id="head">
+      <div class="say" aria-live="polite">
+        <h2 id="title"></h2>
+        <p class="sub" id="sub"></p>
+        <p class="note" id="note"></p>
+      </div>
+      <div class="readout" id="readout">
+        <div class="lbl">We have</div>
+        <div class="num" id="total"></div>
+        <div class="pv" id="pv"></div>
+      </div>
+    </div>
+
+    <div class="linecard" id="viewLine"><div id="line"></div></div>
+
+    <div id="viewDots">
+    <div class="zones">
+      <div class="zone"><h3>Tens <b id="tensCount"></b><span class="sep"></span>Ones <b id="onesCount"></b></h3><div class="frames" id="frames"></div></div>
+    </div>
+
+    <div class="tray" id="tray"></div>
+    </div>
+
+    <div id="viewTrain">
+      <div class="scene">
+        <div class="train" id="train"></div>
+        <div class="platform" id="platform"></div>
+        <div class="boom" id="boomT" hidden></div>
+      </div>
+    </div>
+
+    <div class="controls" id="mainControls">
+      <button class="btn" id="back" type="button">Back</button>
+      <button class="btn primary" id="next" type="button">Next</button>
+      <button class="btn" id="play" type="button">Play</button>
+      <button class="btn" id="restart" type="button">Start over</button>
+      <div class="dots" id="dots" role="group" aria-label="Steps"></div>
+    </div>
+  </section>
+
+  <section class="card eqcard" id="eqcard">
+    <h3>The sum, step by step</h3>
+    <div class="eq" id="eq"></div>
+  </section>
+
+  <details>
+    <summary>For the grown-up</summary>
+    <p id="gu1">This is called making a ten. Counting on past 30 is hard because the ones digit wraps back to 0 and the tens digit goes up by one at the same moment. Here the child first fills the frame (28 needs 2 to become 30), then adds the leftover (30 + 3 = 33). When the number to add has a ten in it, as in 10 + 18, the whole ten goes first. Only the tens digit changes, then the ones are added.</p>
+    <p id="gu2">Ask: "How many more to the next ten?" before pressing Next.</p>
+  </details>
+</div>
+
+<script>
+/* ---------- subjects ---------- */
+const SUBJECTS = [
+  { id: 'add-ten', label: 'Add past a ten', live: true, op: 'add' },
+  { id: 'sub-ten', label: 'Subtract across a ten', live: true, op: 'sub' },
+  { id: 'count-tens', label: 'Count by tens', live: false },
+  { id: 'place', label: 'Tens and ones', live: false },
+];
+const MAX_SUM = 99, MAX_B = 20;
+
+/* ---------- build the steps for A + B ---------- */
+const plural = (n, w) => `${n} ${w}${n === 1 ? '' : 's'}`;
+const N = (v, g) => `<span class="c-${g}">${v}</span>`;
+
+const carsDesc = (at, ao) => [at ? plural(at, 'full car') : '', ao ? `${ao} in car ${at + 1}` : ''].filter(Boolean).join(' and ') || 'nobody';
+const people = n => (n === 1 ? '1 person' : `${n} people`);
+const MINUS = '−';
+
+/* Both builders return the same shape, so every view can draw either operation:
+   steps[i] = { tens: [frames], ones: [counters], tray, gap, gapG, pop, preview, jumps, title, sub, note,
+                tt (train wording), tBoom, tBadge, done }, eq = equation pieces, end = the answer.
+   Counter groups: start (blue), tens (teal), fill (orange), ones (pink). */
+function build(A, B) {
+  const at = Math.floor(A / 10), ao = A % 10, bt = Math.floor(B / 10), bo = B % 10;
+  const tens = Array.from({ length: at }, () => Array(10).fill('start'));
+  let ones = Array(ao).fill('start');
+  let tray = [...Array(bt * 10).fill('tens'), ...Array(bo).fill('ones')];
+  const jumps = [], steps = [], eq = [];
+  const eqAdd = h => eq.push({ h, from: steps.length });
+  const push = o => steps.push({
+    tens: tens.map(f => f.slice()), ones: ones.slice(), tray: tray.slice(), gap: 0, gapG: 'ones',
+    pop: null, done: false, badge: '', note: '', preview: null, tt: null, tBoom: null, tBadge: '', ...o, jumps: jumps.slice(),
+  });
+  let cur = A;
+
+  eqAdd(`${N(A, 'start')} + ${B}`);
+  push({
+    title: `Start with ${A}`,
+    sub: `${plural(at, 'ten')} and ${plural(ao, 'one')}.`,
+    note: bt > 0 && bo > 0 ? `We will add ${B} in two bites: ${bt * 10} and ${bo}.` : `We will add ${B}.`,
+    tt: { title: `${people(A)} ${A === 1 ? 'is' : 'are'} on the train`, sub: `${carsDesc(at, ao)}.`, note: `${B === 1 ? '1 person is' : B + ' people are'} waiting on the platform.` },
+  });
+
+  if (bt > 0) {
+    for (let i = 0; i < bt; i++) tens.push(Array(10).fill('tens'));
+    tray = Array(bo).fill('ones');
+    jumps.push({ from: cur, to: cur + bt * 10, g: 'tens', label: '+' + bt * 10 });
+    cur += bt * 10;
+    eqAdd(bo > 0 ? `= ${N(cur, 'tens')} + ${bo}` : `= ${N(cur, 'tens')}`);
+    const sub = `${plural(at, 'ten')} + ${plural(bt, 'ten')} = ${plural(at + bt, 'ten')}. The ${plural(ao, 'one')} stay the same.`;
+    push({
+      title: `Add ${bt * 10} first`, sub, pop: 'tens', done: bo === 0,
+      tt: { title: bt === 1 ? 'A whole car of 10 boards' : `${bt} whole cars of 10 board`, sub: `A full car is a ten. ${sub}` },
+    });
+  }
+
+  if (bo > 0) {
+    const n = tens.length + 1;   /* number of the car being filled */
+    if (ao + bo < 10) {
+      push({
+        title: `Now add ${bo}`,
+        sub: `The frame has ${ao} and ${10 - ao} empty spots. ${bo} will fit.`,
+        gap: bo, gapG: 'ones',
+        tt: ao === 0
+          ? { title: 'A new car pulls up', sub: `${bo} are waiting. They all fit in it.` }
+          : { sub: `Car ${n} has ${ao} people and ${10 - ao} empty seats. ${bo} will fit.` },
+      });
+      ones = ones.concat(Array(bo).fill('ones'));
+      tray = [];
+      jumps.push({ from: cur, to: cur + bo, g: 'ones', label: '+' + bo });
+      eqAdd(`= ${N(cur + bo, 'ones')}`);
+      cur += bo;
+      push({ title: `${cur - bo} + ${bo} = ${cur}`, sub: 'It fits in the frame, so no new ten is made.', pop: 'ones', done: true, tt: { sub: 'They all fit, so no new car is needed.' } });
+    } else {
+      const k = 10 - ao, r = bo - k;
+      if (r === 0) eqAdd(`= ${cur} + ${N(k, 'fill')}`);
+      push({
+        title: `Add ${bo} more`,
+        sub: `The frame has ${ao}. It needs ${k} more to be full, and full is a ten.`,
+        gap: k, gapG: 'fill',
+        tt: { title: `Car ${n} has ${plural(k, 'empty seat')}`, sub: `${bo} people are waiting. ${k} can go in the empty seats.` },
+      });
+      if (r > 0) {
+        eqAdd(`= ${cur} + ${N(k, 'fill')} + ${N(r, 'ones')}`);
+        tray = [...Array(k).fill('fill'), ...Array(r).fill('ones')];
+        push({
+          title: `Split ${bo} into ${k} and ${r}`,
+          sub: `${k} fills the gap. ${r} is left over.`,
+          gap: k, gapG: 'fill',
+          tt: { title: `${k} board, ${r} wait`, sub: `${k} go into Car ${n}. ${r} will take the next car.` },
+        });
+      }
+      ones = ones.concat(Array(k).fill('fill'));
+      tray = Array(r).fill('ones');
+      jumps.push({ from: cur, to: cur + k, g: 'fill', label: '+' + k });
+      const prev = cur; cur += k;
+      eqAdd(r > 0 ? `= ${N(cur, 'fill')} + ${N(r, 'ones')}` : `= ${N(cur, 'fill')}`);
+      push({
+        title: `${prev} + ${k} = ${cur}`,
+        sub: `The frame is full. That is a new ten, and we are now at ${cur}.`,
+        pop: 'fill', badge: '10 = a new ten', done: r === 0,
+        tt: { title: `Car ${n} is full! That's ${cur}`, sub: `${prev} + ${k} = ${cur}. A full car is one more ten.` },
+        tBoom: { big: `${cur}!`, sub: `Car ${n} is full` }, tBadge: `Full! That's ${cur}`,
+      });
+      if (r > 0) {
+        tens.push(ones);
+        ones = [];
+        push({
+          title: 'A new frame', sub: `The full frame is counted as a ten. The ${r} left will go in a new frame.`,
+          gap: r, gapG: 'ones',
+          tt: { title: 'A new car pulls up', sub: `The ${r} still waiting will take it.` },
+        });
+        ones = Array(r).fill('ones');
+        tray = [];
+        jumps.push({ from: cur, to: cur + r, g: 'ones', label: '+' + r });
+        eqAdd(`= ${N(cur + r, 'ones')}`);
+        const p = cur; cur += r;
+        push({ title: `${p} + ${r} = ${cur}`, sub: `${r} more ones start the next frame.`, pop: 'ones', done: true, tt: { sub: `${r} more board the new car.` } });
+      }
+    }
+  }
+  return { steps, eq, A, B, op: 'add', end: A + B };
+}
+
+function buildSub(A, B) {
+  const at = Math.floor(A / 10), ao = A % 10, bt = Math.floor(B / 10), bo = B % 10;
+  /* counters that are about to go are coloured, the rest stay blue */
+  const tens = Array.from({ length: at }, (_, i) => Array(10).fill(i >= at - bt ? 'tens' : 'start'));
+  let ones = Array(ao).fill('start');
+  let tray = [...Array(bt * 10).fill('tens'), ...Array(bo).fill('ones')];
+  const jumps = [], steps = [], eq = [];
+  const eqAdd = h => eq.push({ h, from: steps.length });
+  const push = o => steps.push({
+    tens: tens.map(f => f.slice()), ones: ones.slice(), tray: tray.slice(), gap: 0, gapG: 'ones',
+    pop: null, done: false, badge: '', note: '', preview: null, tt: null, tBoom: null, tBadge: '', ...o, jumps: jumps.slice(),
+  });
+  const pv = (from, to, g) => ({ from, to, g, label: MINUS + (from - to) + '?' });
+  let cur = A;
+
+  eqAdd(`${N(A, 'start')} ${MINUS} ${B}`);
+  push({
+    title: `Start with ${A}`,
+    sub: `${plural(at, 'ten')} and ${plural(ao, 'one')}.`,
+    note: bt > 0 && bo > 0 ? `We take away ${B} in two bites: ${bt * 10} and ${bo}. The marked ${bt === 1 ? 'ten goes' : 'tens go'} first.`
+      : bt > 0 ? `The marked ${bt === 1 ? 'ten goes' : 'tens go'}.` : `We take away ${B}.`,
+    preview: bt > 0 ? pv(cur, cur - bt * 10, 'tens') : null,
+    tt: { title: `${people(A)} ${A === 1 ? 'is' : 'are'} on the train`, sub: `${carsDesc(at, ao)}.`, note: `${B} will get off. The marked ones get off first.` },
+  });
+
+  if (bt > 0) {
+    for (let i = 0; i < bt; i++) tens.pop();
+    tray = Array(bo).fill('ones');
+    jumps.push({ from: cur, to: cur - bt * 10, g: 'tens', label: MINUS + bt * 10 });
+    cur -= bt * 10;
+    eqAdd(bo > 0 ? `= ${N(cur, 'tens')} ${MINUS} ${bo}` : `= ${N(cur, 'tens')}`);
+    const sub = `${plural(at, 'ten')} ${MINUS} ${plural(bt, 'ten')} = ${plural(at - bt, 'ten')}. The ${plural(ao, 'one')} stay the same.`;
+    push({
+      title: `Take away ${bt * 10} first`, sub, done: bo === 0,
+      tt: { title: bt === 1 ? 'A whole car of 10 gets off' : `${bt} whole cars get off`, sub: `A full car is a ten. ${sub}` },
+    });
+  }
+
+  if (bo > 0) {
+    const n = tens.length + 1;   /* the car with the loose ones */
+    if (bo <= ao) {
+      ones = ones.map((g, i) => (i >= ao - bo ? 'ones' : g));
+      push({
+        title: `Now take away ${bo}`,
+        sub: `The ones frame has ${ao}. We can take ${bo} out of it.`,
+        preview: pv(cur, cur - bo, 'ones'),
+        tt: { title: `${bo} get off`, sub: `Car ${n} has ${ao} people. ${bo} of them get off.` },
+      });
+      ones = ones.slice(0, ao - bo);
+      tray = [];
+      jumps.push({ from: cur, to: cur - bo, g: 'ones', label: MINUS + bo });
+      eqAdd(`= ${N(cur - bo, 'ones')}`);
+      const prev = cur; cur -= bo;
+      const lands = ao === bo;
+      push({
+        title: `${prev} ${MINUS} ${bo} = ${cur}`,
+        sub: lands ? 'The ones frame is empty, so we landed on a ten.' : 'They all come out of the ones, so no ten needs to open.',
+        done: true,
+        tt: { sub: lands ? `Car ${n} is empty and rolls away. We are at ${cur}, a whole ten.` : 'They all get off this car, so no other car is needed.' },
+        tBoom: lands ? { big: `${cur}!`, sub: 'Down to a whole ten' } : null,
+      });
+    } else {
+      const k = ao, r = bo - k;
+      tray = [...Array(k).fill('fill'), ...Array(r).fill('ones')];
+      if (k > 0) {
+        ones = ones.map(() => 'fill');
+        eqAdd(`= ${cur} ${MINUS} ${N(k, 'fill')} ${MINUS} ${N(r, 'ones')}`);
+      }
+      push({
+        title: k > 0 ? `Take away ${bo}: ${k} and ${r}` : `Take away ${bo}`,
+        sub: k > 0 ? `First take away the ${k} to get down to ${cur - k}. Then ${r} more.` : `${cur} has no ones, so we open a ten.`,
+        preview: k > 0 ? pv(cur, cur - k, 'fill') : null,
+        tt: k > 0
+          ? { title: `${bo} get off: ${k} and ${r}`, sub: `The ${k} in Car ${n} get off first. Then ${r} more.` }
+          : { title: `${bo} get off`, sub: `There is no loose car, so they get off the last full car.` },
+      });
+      if (k > 0) {
+        ones = [];
+        tray = Array(r).fill('ones');
+        jumps.push({ from: cur, to: cur - k, g: 'fill', label: MINUS + k });
+        const prev = cur; cur -= k;
+        eqAdd(`= ${N(cur, 'fill')} ${MINUS} ${N(r, 'ones')}`);
+        push({
+          title: `${prev} ${MINUS} ${k} = ${cur}`, sub: `We are down to ${cur}, a whole ten.`,
+          tt: { sub: `Car ${n} is empty and rolls away. We are at ${cur}, a whole ten.` },
+          tBoom: { big: `${cur}!`, sub: 'Down to a whole ten' },
+        });
+      }
+      tens.pop();
+      ones = [...Array(10 - r).fill('start'), ...Array(r).fill('ones')];
+      push({
+        title: 'Open one ten', sub: `1 ten is 10 ones. Now take away the ${r} that are left.`,
+        preview: pv(cur, cur - r, 'ones'),
+        tt: { title: `${r} more get off`, sub: `They get off the last full car.` },
+      });
+      ones = ones.slice(0, 10 - r);
+      tray = [];
+      jumps.push({ from: cur, to: cur - r, g: 'ones', label: MINUS + r });
+      eqAdd(`= ${N(cur - r, 'ones')}`);
+      const p = cur; cur -= r;
+      push({ title: `${p} ${MINUS} ${r} = ${cur}`, sub: `${10 - r} are left in the frame.`, done: true, tt: { sub: `${10 - r} are left in the car.` } });
+    }
+  }
+  return { steps, eq, A, B, op: 'sub', end: A - B };
+}
+const buildFor = (op, a, b) => (op === 'sub' ? buildSub(a, b) : build(a, b));
+/* END build */
+
+/* ---------- rendering ---------- */
+const $ = id => document.getElementById(id);
+const S = { op: 'add', A: 28, B: 5, model: null, i: 0, shown: -1, timer: null, view: 'car' };
+
+function frameHTML(arr, { gap = 0, gapG = 'ones', pop = null, badge = '', row = false, mark = false } = {}) {
+  let s = '', pi = 0;
+  for (let i = 0; i < 10; i++) {
+    if (i < arr.length) {
+      const g = arr[i], p = pop && g === pop;
+      s += `<span class="slot"><span class="dot g-${g}${p ? ' pop' : ''}${mark && g !== 'start' ? ' mark' : ''}" style="animation-delay:${p ? pi++ * 70 : 0}ms"></span></span>`;
+    } else if (i - arr.length < gap) {
+      s += `<span class="slot gap gc-${gapG}">${i - arr.length + 1}</span>`;
+    } else s += '<span class="slot"></span>';
+  }
+  return `<div class="frame${row ? ' row' : ''}${arr.length === 10 ? ' full' : ''}">${s}${badge ? `<b class="badge">${badge}</b>` : ''}</div>`;
+}
+
+let lineAnim = null, hopId = 0;
+const REDUCE = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+function lineHTML(m, st, animate) {
+  const { A, B, end } = m, sub = m.op === 'sub';
+  const lo = Math.floor(Math.min(A, end) / 10) * 10;
+  let hi = Math.ceil(Math.max(A, end) / 10) * 10; if (hi === lo) hi = lo + 10;
+  const W = 700, H = 275, pad = 34, y = 180, ay = y - 12;
+  const x = n => pad + (n - lo) / (hi - lo) * (W - 2 * pad);
+  const col = g => `var(--${g})`;
+  const arc = (x1, x2, apex) => `M${x1} ${ay} Q${(x1 + x2) / 2} ${ay - apex * 2} ${x2} ${ay}`;
+  const apexOf = (x1, x2) => Math.min(55, 18 + Math.abs(x2 - x1) * 0.14);
+  let s = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Number line from ${lo} to ${hi}">`;
+  s += `<line x1="${x(lo)}" y1="${y}" x2="${x(hi)}" y2="${y}" style="stroke:var(--muted)" stroke-width="3" stroke-linecap="round"/>`;
+  for (let n = lo; n <= hi; n++) {
+    const major = n % 10 === 0;
+    s += `<line x1="${x(n)}" y1="${y - (major ? 14 : 7)}" x2="${x(n)}" y2="${y + (major ? 14 : 7)}" style="stroke:${major ? 'var(--ink)' : 'var(--muted)'}" stroke-width="${major ? 4 : 2}"/>`;
+    if (major) s += `<text x="${x(n)}" y="${y + 42}" text-anchor="middle" font-size="26" font-weight="600" style="fill:var(--ink)">${n}</text>`;
+  }
+
+  /* the whole jump, dashed, drawn first so the real hops sit under it */
+  const bw = Math.abs(x(end) - x(A)), bApex = Math.min(120, 70 + bw * 0.1);
+  s += `<path d="${arc(x(A), x(end), bApex)}" fill="none" style="stroke:var(--muted)" stroke-width="3" stroke-dasharray="2 9" stroke-linecap="round"/>`;
+  s += `<text x="${(x(A) + x(end)) / 2}" y="${ay - bApex - 10}" text-anchor="middle" font-size="26" font-weight="600" style="fill:var(--muted)">${sub ? 'back' : 'jump of'} ${B}</text>`;
+
+  /* the hop we are about to make */
+  const pos = st.jumps.length ? st.jumps[st.jumps.length - 1].to : A;
+  const pv = st.preview || (st.gap > 0
+    ? { from: pos, to: st.gapG === 'fill' ? (Math.floor(pos / 10) + 1) * 10 : pos + st.gap, g: st.gapG, label: `+${st.gap}?` } : null);
+  if (pv) {
+    const x1 = x(pv.from), x2 = x(pv.to), apex = apexOf(x1, x2);
+    s += `<path d="${arc(x1, x2, apex)}" fill="none" style="stroke:${col(pv.g)}" stroke-width="5" stroke-dasharray="2 9" stroke-linecap="round"/>`;
+    s += `<text x="${(x1 + x2) / 2}" y="${ay - apex - 9}" text-anchor="middle" font-size="26" font-weight="600" style="fill:${col(pv.g)}">${pv.label}</text>`;
+    s += `<circle cx="${x2}" cy="${y}" r="11" fill="none" style="stroke:${col(pv.g)}" stroke-width="3"/>`;
+  }
+
+  /* the hops taken so far */
+  const marks = [{ n: A, g: 'start' }];
+  const newIdx = animate ? st.jumps.length - 1 : -1;
+  lineAnim = null;
+  st.jumps.forEach((j, idx) => {
+    const x1 = x(j.from), x2 = x(j.to), apex = apexOf(x1, x2);
+    const isNew = idx === newIdx && !REDUCE;
+    s += `<path class="arc${isNew ? ' new' : ''}" pathLength="1" d="${arc(x1, x2, apex)}" fill="none" style="stroke:${col(j.g)}" stroke-width="6" stroke-linecap="round"/>`;
+    s += `<text class="${isNew ? 'lab new' : ''}" x="${(x1 + x2) / 2}" y="${ay - apex - 9}" text-anchor="middle" font-size="26" font-weight="600" style="fill:${col(j.g)}">${j.label}</text>`;
+    marks.push({ n: j.to, g: j.g });
+    if (isNew) lineAnim = { x1, x2, y: ay, cx: (x1 + x2) / 2, cy: ay - apex * 2 };
+  });
+
+  /* where we land, and the target we have not reached yet */
+  if (!st.done) {
+    s += `<circle cx="${x(end)}" cy="${y}" r="10" fill="none" style="stroke:var(--ink)" stroke-width="3" stroke-dasharray="4 4"/>`;
+    s += `<text x="${x(end)}" y="${y + 78}" text-anchor="middle" font-size="26" font-weight="600" style="fill:var(--muted)">?</text>`;
+  }
+  for (const mk of marks) {
+    s += `<circle cx="${x(mk.n)}" cy="${y}" r="9" style="fill:${col(mk.g)}"/>`;
+    if (mk.n % 10 !== 0) s += `<text x="${x(mk.n)}" y="${y + 78}" text-anchor="middle" font-size="26" font-weight="600" style="fill:${col(mk.g)}">${mk.n}</text>`;
+  }
+
+  /* the hopper */
+  const at = lineAnim ? { px: lineAnim.x1, py: ay } : { px: x(pos), py: y };
+  const hy = lineAnim ? at.py - 18 : at.py - 30;
+  s += `<g id="hop" transform="translate(${at.px} ${hy})"><circle r="15" style="fill:var(--surface);stroke:var(--ink)" stroke-width="3"/>`
+    + `<circle cx="-5.5" cy="-3" r="2.8" style="fill:var(--ink)"/><circle cx="5.5" cy="-3" r="2.8" style="fill:var(--ink)"/>`
+    + `<path d="M-6 4.5 Q0 10 6 4.5" fill="none" style="stroke:var(--ink)" stroke-width="2.2" stroke-linecap="round"/></g>`;
+  return s + '</svg>';
+}
+
+function runHop() {
+  const id = ++hopId, a = lineAnim, h = document.getElementById('hop');
+  lineAnim = null;
+  if (!a || !h) return;
+  const t0 = performance.now(), D = 800;
+  const frame = now => {
+    if (id !== hopId) return;
+    const t = Math.min(1, (now - t0) / D), e = t < .5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2, u = 1 - e;
+    const px = u * u * a.x1 + 2 * u * e * a.cx + e * e * a.x2;
+    const py = u * u * a.y + 2 * u * e * a.cy + e * e * a.y;
+    h.setAttribute('transform', `translate(${px} ${py - 18})`);
+    if (t < 1) requestAnimationFrame(frame);
+    else h.setAttribute('transform', `translate(${a.x2} ${a.y + 12 - 30})`);
+  };
+  requestAnimationFrame(frame);
+}
+
+/* ---------- train view ---------- */
+const ENGINE = `<svg class="engine" viewBox="0 0 100 80" aria-hidden="true">
+  <rect x="6" y="28" width="58" height="30" rx="10" style="fill:var(--ink)"/>
+  <rect x="58" y="12" width="36" height="46" rx="7" style="fill:var(--ink)"/>
+  <rect x="67" y="21" width="18" height="14" rx="3" style="fill:var(--surface)"/>
+  <rect x="16" y="12" width="13" height="18" rx="3" style="fill:var(--fill)"/>
+  <circle cx="22" cy="64" r="10" style="fill:var(--ink);stroke:var(--bg)" stroke-width="3"/>
+  <circle cx="46" cy="64" r="10" style="fill:var(--ink);stroke:var(--bg)" stroke-width="3"/>
+  <circle cx="76" cy="64" r="10" style="fill:var(--ink);stroke:var(--bg)" stroke-width="3"/></svg>`;
+
+const paxHTML = (g, pop, i, mark) =>
+  `<span class="pax g-${g}${pop ? ' pop' : ''}${mark && g !== 'start' ? ' mark' : ''}" style="animation-delay:${pop ? i * 90 : 0}ms"><i></i></span>`;
+
+function trainCarHTML(c, idx) {
+  const lo = idx * 10 + 1;
+  let seats = '', pi = 0;
+  for (let i = 0; i < 10; i++) {
+    if (i < c.seats.length) {
+      const g = c.seats[i], pop = c.pop && g === c.pop;
+      seats += `<span class="seat">${paxHTML(g, pop, pop ? pi++ : 0, c.mark)}</span>`;
+    } else if (i - c.seats.length < c.gap) seats += `<span class="seat gap gc-${c.gapG}">${lo + i}</span>`;
+    else seats += '<span class="seat"></span>';
+  }
+  const cls = ['tcar', c.seats.length === 10 ? 'full' : '', c.arrive ? 'arrive' : '', c.flash ? 'flash' : ''].filter(Boolean).join(' ');
+  return `<div class="${cls}"><div class="roof"><b>Car ${idx + 1}</b><span>${lo}–${idx * 10 + 10}</span></div>`
+    + `<div class="seats">${seats}</div><div class="wheels"><i></i><i></i></div>${c.badge ? `<b class="badge">${c.badge}</b>` : ''}</div>`;
+}
+
+/* a car is on the train while it has people in it, or while it is pulling up with seats to fill */
+const trainCars = st => st.tens.length + (st.ones.length > 0 || st.gap > 0 ? 1 : 0);
+
+function renderTrain(m, st, animate) {
+  const prev = S.shown >= 0 && S.shown < S.i ? m.steps[S.shown] : null;
+  const prevN = prev ? trainCars(prev) : Infinity;   /* cars past this count slide in */
+  const mark = m.op === 'sub';
+  const cars = st.tens.map((seats, i) => ({ seats, mark, arrive: i >= prevN, pop: st.pop === 'tens' ? 'tens' : null }));
+  if (st.ones.length > 0 || st.gap > 0) cars.push({
+    seats: st.ones, gap: st.gap, gapG: st.gapG, pop: st.pop, badge: st.tBadge, mark,
+    arrive: cars.length >= prevN, flash: animate && !!st.tBoom && !mark,
+  });
+  $('train').innerHTML = ENGINE + cars.map(trainCarHTML).join('');
+
+  const T = TEXT[S.op];
+  $('platform').innerHTML = `<h3>${T.plat} <b>${st.tray.length}</b></h3>`
+    + (st.tray.length ? `<div class="waiters">${st.tray.map(g => paxHTML(g, false, 0, false)).join('')}</div>` : `<span class="none">${T.platNone}</span>`);
+
+  clearTimeout(S.boomT);
+  const b = $('boomT');
+  if (animate && st.tBoom) {
+    b.innerHTML = `<div><b>${st.tBoom.big}</b><span>${st.tBoom.sub}</span></div>`;
+    b.hidden = false;
+    S.boomT = setTimeout(() => { b.hidden = true; }, 2200);
+  } else b.hidden = true;
+}
+
+function render() {
+  const m = S.model, st = m.steps[S.i], v = S.view, T = TEXT[S.op];
+  const tt = v === 'train' && st.tt ? st.tt : {};
+  $('title').textContent = tt.title ?? st.title;
+  $('sub').textContent = tt.sub ?? st.sub;
+  $('note').textContent = tt.note ?? st.note;
+
+  const total = st.tens.length * 10 + st.ones.length;
+  $('total').textContent = total;
+  $('pv').textContent = `${plural(Math.floor(total / 10), 'ten')} ${total % 10} ${total % 10 === 1 ? 'one' : 'ones'}`;
+  $('readout').classList.toggle('done', st.done);
+  $('readout').querySelector('.lbl').textContent = st.done ? 'Answer' : v === 'train' ? 'On the train' : 'We have';
+
+  $('tensCount').textContent = st.tens.length;
+  $('onesCount').textContent = st.ones.length;
+  const row = v === 'beads', mark = S.op === 'sub';
+  $('frames').className = 'frames' + (row ? ' rows' : '');
+  $('frames').innerHTML = st.tens.map(f => frameHTML(f, { pop: st.pop === 'tens' ? 'tens' : null, row, mark })).join('')
+    + frameHTML(st.ones, { gap: st.gap, gapG: st.gapG, pop: st.pop, badge: st.badge, row, mark });
+  const isCar = v === 'car';
+  $('viewLine').hidden = v !== 'hops';
+  $('viewDots').hidden = v !== 'beads' && v !== 'frames';
+  $('viewTrain').hidden = v !== 'train';
+  $('readout').hidden = v === 'hops';
+  ['head', 'mainControls', 'eqcard'].forEach(id => { $(id).hidden = isCar; });
+  $('viewCar').hidden = !isCar;
+  document.querySelectorAll('#views button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.v === v)));
+
+  $('tray').innerHTML = `<h3>${T.tray}</h3>` + (st.tray.length
+    ? `<div class="row">${st.tray.map(g => `<span class="dot g-${g}"></span>`).join('')}</div>`
+    : `<span class="none">${T.none}</span>`);
+
+  $('eq').innerHTML = m.eq.map(e => `<span class="seg${e.from <= S.i ? ' on' : ''}">${e.h}</span>`).join('');
+  const forward = S.shown >= 0 && S.i === S.shown + 1;
+  $('line').innerHTML = lineHTML(m, st, forward && st.jumps.length > m.steps[S.shown].jumps.length);
+  runHop();
+  renderTrain(m, st, forward);
+  S.shown = S.i;
+
+  $('back').disabled = S.i === 0;
+  $('next').disabled = S.i === m.steps.length - 1;
+  $('next').textContent = S.i === m.steps.length - 1 ? 'Done' : 'Next';
+  $('dots').innerHTML = m.steps.map((_, i) => `<button type="button" data-i="${i}" aria-label="Step ${i + 1}"${i === S.i ? ' aria-current="true"' : ''}></button>`).join('');
+  document.querySelectorAll('#presets .chip').forEach(c =>
+    c.setAttribute('aria-pressed', String(+c.dataset.a === S.A && +c.dataset.b === S.B)));
+  if (isCar) carRender();
+}
+
+/* ---------- state changes ---------- */
+function stopPlay() { clearInterval(S.timer); S.timer = null; $('play').textContent = 'Play'; carStop(); }
+function go(i) { S.i = Math.max(0, Math.min(S.model.steps.length - 1, i)); render(); }
+function setProblem(a, b) {
+  stopPlay();
+  b = Math.max(1, Math.min(MAX_B, Math.round(+b) || 1));
+  a = Math.round(+a) || 0;
+  if (S.op === 'sub') { a = Math.max(b, Math.min(MAX_SUM, a)); b = Math.min(b, a); }
+  else { a = Math.max(0, Math.min(MAX_SUM - b, a)); b = Math.min(b, MAX_SUM - a); }
+  S.A = a; S.B = b; S.model = buildFor(S.op, a, b); S.i = 0; S.shown = -1; car.key = null;
+  $('aIn').value = a; $('bIn').value = b;
+  render();
+}
+
+$('next').onclick = () => { stopPlay(); go(S.i + 1); };
+$('back').onclick = () => { stopPlay(); go(S.i - 1); };
+$('restart').onclick = () => { stopPlay(); go(0); };
+$('dots').onclick = e => { const b = e.target.closest('button'); if (b) { stopPlay(); go(+b.dataset.i); } };
+$('play').onclick = () => {
+  if (S.timer) return stopPlay();
+  if (S.i >= S.model.steps.length - 1) S.i = 0;
+  render();
+  $('play').textContent = 'Pause';
+  S.timer = setInterval(() => {
+    if (S.i >= S.model.steps.length - 1) return stopPlay();
+    go(S.i + 1);
+    if (S.i >= S.model.steps.length - 1) stopPlay();
+  }, 2600);
+};
+$('aDown').onclick = () => setProblem(S.A - 1, S.B);
+$('aUp').onclick = () => setProblem(S.A + 1, S.B);
+$('bDown').onclick = () => setProblem(S.A, S.B - 1);
+$('bUp').onclick = () => setProblem(S.A, S.B + 1);
+$('aIn').onchange = e => setProblem(e.target.value, S.B);
+$('bIn').onchange = e => setProblem(S.A, e.target.value);
+/* Space also fires a focused button on key-up, so cancel that: the keydown already moved one step */
+document.addEventListener('keyup', e => { if (e.key === ' ' && e.target.tagName !== 'INPUT') e.preventDefault(); });
+document.addEventListener('keydown', e => {
+  if (e.target.tagName === 'INPUT' || e.ctrlKey || e.metaKey || e.altKey) return;
+  const dir = e.key === 'ArrowRight' || e.key === ' ' ? 1 : e.key === 'ArrowLeft' ? -1 : 0;
+  if (!dir) return;
+  e.preventDefault();
+  if (S.view === 'car') { carPause(); carGo(car.pos + dir); } else { stopPlay(); go(S.i + dir); }
+});
+
+/* ---------- car view ---------- */
+const car = { pos: 0, key: null, busy: false, auto: false, timers: [], road: null };
+const later = (fn, ms) => { const t = setTimeout(fn, ms); car.timers.push(t); return t; };
+const isSub = () => S.op === 'sub';
+const carCur = pos => S.A + (isSub() ? -pos : pos);
+const sym = () => (isSub() ? MINUS : '+');
+/* checkpoints are the tens the car stops on: going up it lands on 30, going down it lands on 30 too */
+const gatesFor = (A, B) => {
+  const g = [];
+  if (isSub()) { for (let m = Math.floor((A - 1) / 10) * 10; m > 0 && m >= A - B; m -= 10) g.push(m); }
+  else for (let m = (Math.floor(A / 10) + 1) * 10; m <= A + B; m += 10) g.push(m);
+  return g;
+};
+
+function carPause() { car.auto = false; $('cAuto').textContent = 'Drive all the way'; }
+function carStop() {
+  car.timers.forEach(clearTimeout); car.timers = [];
+  car.busy = false; carPause();
+  $('boom').hidden = true;
+  carButtons();
+}
+
+function flagSVG(px, top) {
+  let s = `<rect x="${px}" y="${top}" width="32" height="16" style="fill:var(--surface);stroke:var(--ink)" stroke-width="1.5"/>`;
+  for (let r = 0; r < 2; r++) for (let c = 0; c < 4; c++) if ((r + c) % 2 === 0) s += `<rect x="${px + c * 8}" y="${top + r * 8}" width="8" height="8" style="fill:var(--ink)"/>`;
+  return s;
+}
+
+function buildCar() {
+  const { A, B } = S, end = S.model.end, lo = Math.floor(Math.min(A, end) / 10) * 10;
+  let hi = Math.ceil(Math.max(A, end) / 10) * 10; if (hi === lo) hi = lo + 10;
+  const W = 700, H = 285, pad = 44, ry = 175, span = hi - lo;
+  const x = n => pad + (n - lo) / span * (W - 2 * pad);
+  const gates = gatesFor(A, B);
+  car.road = { x, ry, gates };
+
+  let s = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Road, ${B} steps long">`;
+  s += `<rect x="${x(lo) - 28}" y="${ry - 28}" width="${x(hi) - x(lo) + 56}" height="56" rx="28" style="fill:var(--road)"/>`;
+  s += `<line x1="${x(lo)}" y1="${ry}" x2="${x(hi)}" y2="${ry}" style="stroke:var(--roadline)" stroke-width="3" stroke-dasharray="14 12"/>`;
+  for (let n = lo; n <= hi; n++) {
+    s += `<line x1="${x(n)}" y1="${ry + 28}" x2="${x(n)}" y2="${ry + 38}" style="stroke:var(--muted)" stroke-width="2"/>`;
+    const big = n % 10 === 0;
+    if (big || span <= 16 || n % 5 === 0 || n === A || n === end)
+      s += `<text x="${x(n)}" y="${ry + 68}" text-anchor="middle" font-size="${big ? 26 : 20}" font-weight="${big ? 600 : 400}" style="fill:${big ? 'var(--ink)' : 'var(--muted)'}">${n}</text>`;
+  }
+  for (const m of gates) {
+    s += `<g class="gate" id="gate${m}"><line x1="${x(m)}" y1="${ry - 28}" x2="${x(m)}" y2="${ry - 92}" style="stroke:var(--ink)" stroke-width="4"/>`;
+    for (let r = 0; r < 4; r++) for (let c = 0; c < 2; c++)
+      s += `<rect x="${x(m) - 6 + c * 6}" y="${ry - 28 + r * 14}" width="6" height="14" style="fill:${(r + c) % 2 ? 'var(--surface)' : 'var(--ink)'}"/>`;
+    s += `<g class="bn"><rect x="${x(m) - 36}" y="${ry - 128}" width="72" height="38" rx="9"/><text x="${x(m)}" y="${ry - 100}" text-anchor="middle" font-size="26" font-weight="600">${m}</text></g></g>`;
+  }
+  s += '<g id="finish">';
+  if (gates.includes(end)) {
+    s += `<line x1="${x(end)}" y1="${ry - 128}" x2="${x(end)}" y2="${ry - 160}" style="stroke:var(--ink)" stroke-width="4"/>` + flagSVG(x(end), ry - 160);
+  } else {
+    s += `<line x1="${x(end)}" y1="${ry - 28}" x2="${x(end)}" y2="${ry - 104}" style="stroke:var(--ink)" stroke-width="4"/>` + flagSVG(x(end), ry - 104);
+    s += `<text x="${x(end) + 16}" y="${ry - 112}" text-anchor="middle" font-size="18" font-weight="500" style="fill:var(--muted)">Finish</text>`;
+  }
+  s += '</g>';
+  /* the car faces right when adding and is flipped to face left when subtracting; the number tag never flips */
+  s += `<g id="car" style="transform:translate(${x(A)}px,${ry}px)"><g class="tag"><rect x="-26" y="-78" width="52" height="30" rx="9"/><path d="M-7 -49 L0 -40 L7 -49 Z"/><text id="cartag" x="0" y="-56" text-anchor="middle" font-size="24" font-weight="600">${A}</text></g>`
+    + `<g${isSub() ? ' transform="scale(-1 1)"' : ''}>`
+    + `<path d="M-40 6 L-40 -8 Q-40 -16 -32 -16 L-27 -16 L-20 -31 Q-19 -33 -16 -33 L2 -33 Q5 -33 7 -31 L19 -16 L32 -16 Q40 -16 40 -8 L40 6 Z" style="fill:var(--start)"/>`
+    + `<path d="M-24 -18 L-18.5 -29 L-6 -29 L-6 -18 Z M-2 -18 L-2 -29 L3 -29 L14 -18 Z" style="fill:var(--surface)"/>`
+    + `<rect x="-40" y="-10" width="5" height="7" rx="2" fill="#e5484d"/><rect x="35" y="-10" width="5" height="7" rx="2" fill="#ffd84d"/>`
+    + `<circle cx="-22" cy="8" r="10" style="fill:var(--ink)"/><circle cx="-22" cy="8" r="4" style="fill:var(--surface)"/>`
+    + `<circle cx="24" cy="8" r="10" style="fill:var(--ink)"/><circle cx="24" cy="8" r="4" style="fill:var(--surface)"/></g></g><g id="fx"></g></svg>`;
+  $('road').innerHTML = s;
+
+  const groups = [];
+  S.model.steps[S.model.steps.length - 1].jumps.forEach(j => { for (let i = 0; i < Math.abs(j.to - j.from); i++) groups.push(j.g); });
+  $('seg').innerHTML = groups.map(g => `<i class="g-${g}"></i>`).join('');
+}
+
+function carApply(just = false) {
+  const { A, B } = S, end = S.model.end, sub = isSub(), cur = carCur(car.pos), left = B - car.pos, r = car.road;
+  $('left').textContent = left;
+  [...$('seg').children].forEach((c, i) => c.classList.toggle('used', i < car.pos));
+  $('cartag').textContent = cur;
+  $('finish').classList.toggle('on', left === 0 && car.pos > 0);
+  r.gates.forEach(m => $('gate' + m).classList.toggle('hit', sub ? cur <= m : cur >= m));
+  const nxt = r.gates.find(m => (sub ? m < cur : m > cur));
+  const hint = nxt ? `Checkpoint ${nxt} is ${plural(Math.abs(nxt - cur), 'step')} away.` : `${plural(left, 'step')} to go.`;
+  let t, n;
+  if (left === 0 && car.pos > 0) { t = `Finish! ${A} ${sym()} ${B} = ${end}`; n = 'The tank is empty.'; }
+  else if (just) { t = `Checkpoint ${cur}!`; n = `${sub ? 'Down to a whole ten.' : 'A new ten.'} ${plural(left, 'step')} left in the tank.`; }
+  else if (car.pos === 0) { t = `Car at ${cur}`; n = `The tank has ${plural(B, 'step')}. ${hint}`; }
+  else { t = `Now at ${cur}`; n = hint; }
+  $('cTitle').textContent = t; $('cNote').textContent = n;
+}
+
+function carButtons() {
+  $('cDrive').disabled = car.busy || car.pos >= S.B;
+  $('cDrive').textContent = car.pos >= S.B ? 'Finished' : 'Drive 1 step';
+  $('cBack').disabled = car.busy || car.pos === 0;
+  $('cReset').disabled = car.busy;
+  $('cAuto').disabled = car.busy && !car.auto;
+}
+
+function burst(cx, cy) {
+  const cols = ['start', 'tens', 'fill', 'ones'];
+  let s = `<circle class="ring" cx="${cx}" cy="${cy}" r="14"/>`;
+  for (let i = 0; i < 18; i++) {
+    const a = i / 18 * Math.PI * 2, d = 70 + (i * 37) % 45;
+    s += `<circle class="conf" cx="${cx}" cy="${cy}" r="${5 + i % 3}" style="fill:var(--${cols[i % 4]});--dx:${Math.cos(a) * d}px;--dy:${Math.sin(a) * d}px"/>`;
+  }
+  $('fx').innerHTML = s;
+  later(() => { $('fx').innerHTML = ''; }, 1200);
+}
+
+function boom(cur, gate, fin) {
+  const { A, B } = S, r = car.road, el = $('boom');
+  const eqs = `${A} ${sym()} ${B} = ${cur}`, ten = isSub() ? 'Down to a ten!' : 'A new ten!';
+  const big = gate ? `${cur}!` : 'Finish!';
+  const msg = gate ? (fin ? `${ten} ${eqs}` : (isSub() ? 'We are down to a ten!' : 'We crossed into a new ten!')) : eqs;
+  el.innerHTML = `<div><b>${big}</b><span>${msg}</span></div>`;
+  el.hidden = false;
+  later(() => { el.hidden = true; }, 2000);
+  if (!REDUCE) burst(r.x(cur), gate ? r.ry - 110 : r.ry - 40);
+}
+
+function carGo(target) {
+  if (car.busy || target < 0 || target > S.B || target === car.pos) return;
+  const fwd = target > car.pos, cur = carCur(target), r = car.road;
+  car.pos = target; car.busy = true; carButtons();
+  $('car').style.transform = `translate(${r.x(cur)}px,${r.ry}px)`;
+  $('left').textContent = S.B - target;
+  [...$('seg').children].forEach((c, i) => c.classList.toggle('used', i < target));
+  later(() => {
+    const gate = fwd && r.gates.includes(cur), fin = fwd && target === S.B;
+    carApply(gate);
+    if (gate || fin) {
+      boom(cur, gate, fin);   /* buttons stay locked until the celebration is over */
+      later(() => { car.busy = false; carButtons(); }, 2000);
+    } else car.busy = false;
+    carButtons();
+  }, REDUCE ? 0 : 620);
+}
+
+function carReset() {
+  carStop();
+  car.pos = 0;
+  const c = $('car'), r = car.road;
+  c.style.transition = 'none';
+  c.style.transform = `translate(${r.x(S.A)}px,${r.ry}px)`;
+  void c.getBoundingClientRect();
+  c.style.transition = '';
+  carApply(); carButtons();
+}
+
+function carAuto() {
+  if (car.auto) return carPause();
+  if (car.pos >= S.B) carReset();
+  car.auto = true; $('cAuto').textContent = 'Pause';
+  const tick = () => {
+    if (!car.auto) return;
+    if (car.pos >= S.B) return carPause();
+    const next = carCur(car.pos + 1), special = car.road.gates.includes(next) || car.pos + 1 === S.B;
+    carGo(car.pos + 1);
+    later(tick, special ? 2900 : 1000);
+  };
+  tick();
+}
+
+function carRender() {
+  const key = S.op + ':' + S.A + ':' + S.B;
+  if (car.key !== key) { carStop(); car.key = key; car.pos = 0; buildCar(); }
+  carApply(); carButtons();
+}
+
+$('cDrive').onclick = () => { carPause(); carGo(car.pos + 1); };
+$('cBack').onclick = () => { carPause(); carGo(car.pos - 1); };
+$('cAuto').onclick = carAuto;
+$('cReset').onclick = carReset;
+
+/* view switch, remembered on this device */
+try { const v = localStorage.getItem('lml-view'); if (['car', 'hops', 'beads', 'frames', 'train'].includes(v)) S.view = v; } catch (e) {}
+$('views').onclick = e => {
+  const b = e.target.closest('button'); if (!b) return;
+  if (S.view === 'car' && b.dataset.v !== 'car') carStop();
+  S.view = b.dataset.v;
+  try { localStorage.setItem('lml-view', S.view); } catch (e) {}
+  render();
+};
+
+/* subjects, presets and the add / subtract switch */
+const TEXT = {
+  add: {
+    h1: 'Adding past a ten',
+    intro: 'Get to the next ten first, then add what is left. Pick how you want to watch it.',
+    sign: '+', tray: 'To add', none: 'Nothing waiting', bLabel: 'Number to add',
+    plat: 'Waiting on the platform', platNone: 'Nobody is waiting',
+    gu1: 'This is called making a ten. Counting on past 30 is hard because the ones digit wraps back to 0 and the tens digit goes up by one at the same moment. Here the child first fills the frame (28 needs 2 to become 30), then adds the leftover (30 + 3 = 33). When the number to add has a ten in it, as in 10 + 18, the whole ten goes first. Only the tens digit changes, then the ones are added.',
+    gu2: 'Ask: "How many more to the next ten?" before pressing Next.',
+  },
+  sub: {
+    h1: 'Subtracting across a ten',
+    intro: 'Go down to the ten first, then take away what is left. Pick how you want to watch it.',
+    sign: MINUS, tray: 'To take away', none: 'Nothing left to take away', bLabel: 'Number to take away',
+    plat: 'Getting off the train', platNone: 'Nobody left to get off',
+    gu1: 'This is the same idea going down. Counting back past 30 is hard because the ones digit wraps from 0 to 9 and the tens digit goes down at the same moment. Here the child first takes away just enough to land on the ten (32 needs 2 to become 30), then takes away the leftover (30 − 3 = 27). When there are not enough ones, a ten opens up into 10 ones. When the number to take away has a ten in it, as in 35 − 18, the whole ten goes first.',
+    gu2: 'Ask: "How many do we take away to land on the ten?" before pressing Next.',
+  },
+};
+const PRESETS = {
+  add: [[10, 18], [28, 5], [17, 6], [49, 4], [8, 5], [36, 9]],
+  sub: [[32, 5], [41, 6], [14, 6], [53, 7], [30, 4], [35, 18]],
+};
+const DEFAULT = { add: [28, 5], sub: [32, 5] };
+
+function renderSubjects() {
+  $('subjects').innerHTML = SUBJECTS.map(s =>
+    `<button type="button" class="subj" data-id="${s.id}"${s.live ? '' : ' disabled'}${s.op === S.op ? ' aria-current="true"' : ''}>${s.label}${s.live ? '' : '<small>soon</small>'}</button>`).join('');
+}
+function renderPresets() {
+  document.querySelectorAll('#presets .chip').forEach(c => c.remove());
+  PRESETS[S.op].forEach(([a, b]) => {
+    const c = document.createElement('button');
+    c.type = 'button'; c.className = 'chip'; c.dataset.a = a; c.dataset.b = b; c.textContent = `${a} ${TEXT[S.op].sign} ${b}`;
+    c.onclick = () => setProblem(a, b);
+    $('presets').appendChild(c);
+  });
+}
+function setOp(op) {
+  S.op = op;
+  const T = TEXT[op];
+  $('pageTitle').textContent = T.h1; $('pageIntro').textContent = T.intro; $('opSign').textContent = T.sign;
+  $('gu1').textContent = T.gu1; $('gu2').textContent = T.gu2;
+  $('bIn').setAttribute('aria-label', T.bLabel);
+  try { history.replaceState(null, '', op === 'sub' ? '#subtract' : '#add'); } catch (e) {}
+  renderSubjects(); renderPresets();
+  setProblem(...DEFAULT[op]);
+}
+$('subjects').onclick = e => {
+  const b = e.target.closest('button'); if (!b || b.disabled) return;
+  const s = SUBJECTS.find(x => x.id === b.dataset.id);
+  if (s && s.op !== S.op) setOp(s.op);
+};
+
+setOp(location.hash === '#subtract' ? 'sub' : 'add');
+
+</script>
+</body>
+</html>
